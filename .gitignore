@@ -39,5 +39,5 @@ build/
 data/
 
 # 3rd parties libraries
-#3rd/
-#!3rd/README.md
+3rd/
+!3rd/README.md
