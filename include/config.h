@@ -6,4 +6,9 @@
  * LICENSE file in the root directory of this source tree).
  */
 
-#include <pcl/registration/icp.h>
+float MAX_CORRESPONDENCE_DISTANCE = 25.0f;
+float TRANSFORMATION_DIFFERENCE_THRESHOLD = 0.01f;
+float MAX_FITNESS_MSE = 100.0f;
+
+float OVERLAP_DISTANCE_THRESHOLD = 100.0f;
+int OVERLAP_POINTS_THRESHOLD = 10;
