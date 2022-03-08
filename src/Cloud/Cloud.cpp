@@ -124,7 +124,7 @@ void Cloud::overlap_segmentation(Cloud &overlap, Cloud &nonoverlap)
     return ;
 }
 
-void dense_clustering(std::vector<Cloud> &subclouds)
+void Cloud::dense_clustering(std::vector<Cloud> &subclouds)
 {
 
 }
