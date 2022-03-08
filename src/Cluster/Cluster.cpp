@@ -3,4 +3,5 @@
 //
 
 #include "Cluster.h"
-static bool dense_
+
+

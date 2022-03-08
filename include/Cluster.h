@@ -10,7 +10,7 @@
 #include <pcl/point_types.h>
 #include <pcl/kdtree/kdtree_flann.h>
 
-static bool dense_cluster_expand(pcl::PointCloud<pcl::PointXYZRGB> &,
+extern bool dense_cluster_expand(pcl::PointCloud<pcl::PointXYZRGB> &,
                                  pcl::KdTreeFLANN<pcl::PointXYZRGB> &,
                                  std::vector<int> &, int, int, int, float);
 #endif //RINO_CLUSTER_H

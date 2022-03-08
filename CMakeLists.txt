@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 3.7)
 project(rino)
 
 set(CMAKE_BUILD_TYPE "Release")
@@ -21,5 +21,4 @@ include_directories(${CMAKE_SOURCE_DIR}/include/)
 link_directories(${CMAKE_SOURCE_DIR}/lib/)
 
 aux_source_directory(. DIR_SRCS)
-add_subdirectory(${CMAKE_SOURCE_DIR}/src/Cloud)
-add_subdirectory(${CMAKE_SOURCE_DIR}/src/Cluster)
+add_subdirectory(${CMAKE_SOURCE_DIR}/src)
