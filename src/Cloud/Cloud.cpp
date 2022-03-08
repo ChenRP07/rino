@@ -66,7 +66,7 @@ void Cloud::centroid_alignment()
     return;
 }
 
-int Cloud::total_base_icp()
+float Cloud::total_base_icp()
 {
     /* icp algorithm, tranform point_cloud to get max overlap with ref_point_cloud */
     pcl::PointCloud<pcl::PointXYZRGB> result;
@@ -83,24 +83,48 @@ int Cloud::total_base_icp()
 
     this->point_cloud.swap(result);
 
-    std::cout << "ICP Convergence : " << icp.getFitnessScore() << "." << std::endl;
-    if (icp.getFitnessScore() > MAX_FITNESS_MSE)
-        return 1;
-    return 0;
+    //std::cout << "ICP Convergence : " << icp.getFitnessScore() << "." << std::endl;
+    return icp.getFitnessScore();
 }
 
 void Cloud::overlap_segmentation(Cloud &overlap, Cloud &nonoverlap)
 {
+    /* kdtree to do nearest neighbor search */
     pcl::KdTreeFLANN<pcl::PointXYZRGB> tree, ref_tree;
 
     tree.setInputCloud(this->point_cloud.makeShared());
     ref_tree.setInputCloud(this->ref_point_cloud.makeShared());
 
+    /* search neighbors in r-radius, add point according to neighbors number */
     for (size_t i = 0; i < this->point_cloud.size(); i++)
     {
         std::vector<int> _idx_;
         std::vector<float> _dis_;
         ref_tree.radiusSearch(this->point_cloud[i], std::sqrt(OVERLAP_DISTANCE_THRESHOLD), _idx_, _dis_);
-        if (_idx_())
+        if (_idx_.size() > OVERLAP_POINTS_THRESHOLD)
+            overlap.point_cloud.push_back(this->point_cloud[i]);
+        else
+            nonoverlap.point_cloud.push_back(this->point_cloud[i]);
     }
+
+    for (size_t i = 0; i < this->ref_point_cloud.size(); i++)
+    {
+        std::vector<int> _idx_;
+        std::vector<float> _dis_;
+        tree.radiusSearch(this->ref_point_cloud[i], std::sqrt(OVERLAP_DISTANCE_THRESHOLD), _idx_, _dis_);
+        if (_idx_.size() > OVERLAP_POINTS_THRESHOLD)
+            overlap.ref_point_cloud.push_back(this->point_cloud[i]);
+        else
+            nonoverlap.ref_point_cloud.push_back(this->point_cloud[i]);
+    }
+
+    overlap.transformation_matrix = this->transformation_matrix;
+    nonoverlap.transformation_matrix = this->transformation_matrix;
+
+    return ;
+}
+
+void dense_clustering(std::vector<Cloud> &subclouds)
+{
+
 }

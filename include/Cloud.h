@@ -5,8 +5,9 @@
  * This source code is licensed under the Mozilla Public license (found in the
  * LICENSE file in the root directory of this source tree).
  */
-#include <string>
 #include <iostream>
+#include <string>
+#include <vector>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/io/ply_io.h>
@@ -27,7 +28,9 @@ public:
     int set_point_cloud(std::string);  /* input point cloud */
     int set_ref_point_cloud(std::string);  /* input reference cloud */
 
-    void centroid_alignment();
-    int total_base_icp();
-    void overlap_segmentation(Cloud &, Cloud &);
-}
+    void centroid_alignment();  /* translate point_cloud to align with ref_point_cloud */
+    float total_base_icp();   /* transform point_cloud to align with ref_point_cloud */
+    void overlap_segmentation(Cloud &, Cloud &);    /* segment both point_cloud and ref_point_cloud */
+
+    void dense_clustering(std::vector<Cloud> &);
+};
