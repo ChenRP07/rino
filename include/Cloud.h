@@ -12,6 +12,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <algorithm>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/io/ply_io.h>
@@ -19,7 +20,7 @@
 #include <pcl/registration/icp.h>
 #include <eigen3/Eigen/Dense>
 
-#include "config.h"
+#include "Cluster.h"
 
 class Cloud
 {
@@ -27,6 +28,7 @@ public:
     pcl::PointCloud<pcl::PointXYZRGB> point_cloud;  /* point cloud */
     pcl::PointCloud<pcl::PointXYZRGB> ref_point_cloud;  /* point cloud of i-frame, i.e. reference cloud */
     Eigen::Matrix4f transformation_matrix; /* the transformation matrix from original cloud to this */
+    std::vector<int> ref_cluster_index;
 
     Cloud();    /* constructor */
     int set_point_cloud(std::string);  /* input point cloud */
@@ -36,7 +38,9 @@ public:
     float total_base_icp();   /* transform point_cloud to align with ref_point_cloud */
     void overlap_segmentation(Cloud &, Cloud &);    /* segment both point_cloud and ref_point_cloud */
 
-    void dense_clustering(std::vector<Cloud> &);
+    void dense_clustering();
+
+    void cluster_matching(std::vector<Cloud> &subclouds);
 };
 
 #endif
