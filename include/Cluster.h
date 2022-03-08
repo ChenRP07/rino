@@ -12,5 +12,5 @@
 
 extern bool dense_cluster_expand(pcl::PointCloud<pcl::PointXYZRGB> &,
                                  pcl::KdTreeFLANN<pcl::PointXYZRGB> &,
-                                 std::vector<int> &, int, int, int, float);
+                                 std::vector<int> &, int, int);
 #endif //RINO_CLUSTER_H
