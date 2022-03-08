@@ -126,5 +126,19 @@ void Cloud::overlap_segmentation(Cloud &overlap, Cloud &nonoverlap)
 
 void Cloud::dense_clustering(std::vector<Cloud> &subclouds)
 {
+    pcl::KdTreeFLANN<pcl::PointXYZRGB> tree, ref_tree;
+    tree.setInputCloud(this->point_cloud.makeShared());
+    ref_tree.setInputCloud(this->ref_point_cloud.makeShared());
 
+    std::vector<int> cluster_index(this->point_cloud.size(), -1);
+    std::vector<int> ref_cluster_index(this->ref_point_cloud.size(), -1);
+
+    int cluster_id = 1, ref_cluster_id = 1;
+    for (size_t i = 0; i < this->point_cloud.size(); i++)
+    {
+        if (cluster_index[i] == -1)
+        {
+
+        }
+    }
 }

@@ -5,6 +5,10 @@
  * This source code is licensed under the Mozilla Public license (found in the
  * LICENSE file in the root directory of this source tree).
  */
+
+#ifndef RINO_CLOUD_H
+#define RINO_CLOUD_H
+
 #include <iostream>
 #include <string>
 #include <vector>
@@ -34,3 +38,5 @@ public:
 
     void dense_clustering(std::vector<Cloud> &);
 };
+
+#endif
