@@ -37,6 +37,7 @@ build/
 
 # Data
 data/
+test/
 
 # 3rd parties libraries
 3rd/

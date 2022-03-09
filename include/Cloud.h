@@ -14,6 +14,7 @@
 #include <vector>
 #include <fstream>
 #include <algorithm>
+#include <set>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/io/ply_io.h>
@@ -58,6 +59,6 @@ extern void cloud_transformation(pcl::PointCloud<pcl::PointXYZRGB> &cloud,
 
 extern float local_icp(pcl::PointCloud<pcl::PointXYZRGB> &ref_cluster,
                        pcl::PointCloud<pcl::PointXYZRGB> &point_cloud,
-                       Cloud &cloud);
+                       Cloud &cloud, std::set<int> &all_index);
 
 #endif

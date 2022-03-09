@@ -192,7 +192,6 @@ void Cloud::ref_point_cloud_cluster_output(std::string address)
     for (size_t i = 0; i < ref_clusters.size(); i++)
         pcl::io::savePLYFile(address + std::to_string(i) + ".ply", ref_clusters[i]);
 
-    return;
 }
 
 
@@ -206,13 +205,19 @@ void Cloud::cluster_matching(std::vector<Cloud> &subclouds)
     for (size_t i = 0; i < ref_point_cloud.size(); i++)
         ref_clusters[ref_cluster_index[i]].push_back(ref_point_cloud[i]);
 
+    subclouds.clear();
+    subclouds.resize(ref_clusters.size());
+
+    std::set<int> all_index;
     /* use these clusters to do icp */
     for (size_t i = 0; i < ref_clusters.size(); i++)
     {
-
-
+        //std::cout<<ref_clusters[i].size()<<std::endl;
+        float mse = local_icp(ref_clusters[i], this->point_cloud, subclouds[i], all_index);
+        std::cout << "cluster " << i << " : " << mse << std::endl;
+        subclouds[i].transformation_matrix = subclouds[i].transformation_matrix * this->transformation_matrix;
     }
-
+    std::cout << all_index.size() << std::endl;
 }
 
 void cloud_transformation(pcl::PointCloud<pcl::PointXYZRGB> &cloud,
@@ -238,8 +243,9 @@ void cloud_transformation(pcl::PointCloud<pcl::PointXYZRGB> &cloud,
 
 float local_icp(pcl::PointCloud<pcl::PointXYZRGB> &ref_cluster,
                 pcl::PointCloud<pcl::PointXYZRGB> &point_cloud,
-                Cloud &cloud)
+                Cloud &cloud, std::set<int> &all_index)
 {
+    /* do localized icp */
     pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
     pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree, ref_tree;
     pcl::PointCloud<pcl::PointXYZRGB> result, matching_result;
@@ -247,11 +253,11 @@ float local_icp(pcl::PointCloud<pcl::PointXYZRGB> &ref_cluster,
     icp.setInputSource(ref_cluster.makeShared());
     icp.setInputTarget(point_cloud.makeShared());
 
-    ref_tree->setInputCloud(ref_cluster.makeShared());
-    tree->setInputCloud(point_cloud.makeShared());
-
-    icp.setSearchMethodSource(ref_tree);
-    icp.setSearchMethodTarget(tree);
+//    ref_tree->setInputCloud(ref_cluster.makeShared());
+//    tree->setInputCloud(point_cloud.makeShared());
+//
+//    icp.setSearchMethodSource(ref_tree);
+//    icp.setSearchMethodTarget(tree);
 
     icp.setMaxCorrespondenceDistance(MAX_CORRESPONDENCE_DISTANCE);
     icp.setEuclideanFitnessEpsilon(MSE_DIFFERENCE_THRESHOLD);
@@ -259,10 +265,11 @@ float local_icp(pcl::PointCloud<pcl::PointXYZRGB> &ref_cluster,
     icp.setTransformationEpsilon(TRANSFORMATION_DIFFERENCE_THRESHOLD);
 
     icp.align(result);
-
+    //pcl::io::savePLYFile("../test/data/" + std::to_string(all_index.size()) + ".ply", result);
     float mse = icp.getFitnessScore();
     Eigen::Matrix4f matrix = icp.getFinalTransformation();
 
+    /* search point_cloud and add point whose distance from result is less than mse */
     pcl::KdTreeFLANN<pcl::PointXYZRGB> result_tree;
     result_tree.setInputCloud(result.makeShared());
 
@@ -271,10 +278,19 @@ float local_icp(pcl::PointCloud<pcl::PointXYZRGB> &ref_cluster,
         std::vector<int> _idx_(1);
         std::vector<float> _dis_(1);
         result_tree.nearestKSearch(point_cloud[i], 1, _idx_, _dis_);
-        if (_dis_[0] <= mse)
+        if (_dis_[0] <= OVERLAP_SQRT_DISTANCE_THRESHOLD)
+        {
             matching_result.push_back(point_cloud[i]);
+            all_index.insert(i);
+        }
     }
 
+    /* inversely transform the selected points */
     cloud_transformation(matching_result, matrix.inverse());
 
+    /* set them to cloud */
+    cloud.change_point_cloud(matching_result);
+    cloud.change_ref_point_cloud(ref_cluster);
+
+    return mse;
 }
