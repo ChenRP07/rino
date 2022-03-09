@@ -27,6 +27,20 @@ int Cloud::set_ref_point_cloud(std::string filename)
     return 0;
 }
 
+void Cloud::change_point_cloud(pcl::PointCloud<pcl::PointXYZRGB> &point_cloud)
+{
+    this->point_cloud.resize(point_cloud.size());
+    for (size_t i = 0; i < point_cloud.size(); i++)
+        this->point_cloud[i] = point_cloud[i];
+}
+
+void Cloud::change_ref_point_cloud(pcl::PointCloud<pcl::PointXYZRGB> &ref_point_cloud)
+{
+    this->ref_point_cloud.resize(ref_point_cloud.size());
+    for (size_t i = 0; i < ref_point_cloud.size(); i++)
+        this->ref_point_cloud[i] = ref_point_cloud[i];
+}
+
 void Cloud::centroid_alignment()
 {
     /* calculate centroids Cp and Cr for point_cloud and ref_point_cloud */
@@ -63,12 +77,11 @@ void Cloud::centroid_alignment()
     this->transformation_matrix(2, 3) = this->transformation_matrix(2, 3) - Cp.z + Cr.z;
     this->transformation_matrix(3, 3) = 1.0f;
 
-    return;
 }
 
 float Cloud::total_base_icp()
 {
-    /* icp algorithm, tranform point_cloud to get max overlap with ref_point_cloud */
+    /* icp algorithm, transform point_cloud to get max overlap with ref_point_cloud */
     pcl::PointCloud<pcl::PointXYZRGB> result;
 
     pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
@@ -76,7 +89,9 @@ float Cloud::total_base_icp()
     icp.setInputTarget(this->ref_point_cloud.makeShared());
 
     icp.setMaxCorrespondenceDistance(MAX_CORRESPONDENCE_DISTANCE);
-    icp.setEuclideanFitnessEpsilon(TRANSFORMATION_DIFFERENCE_THRESHOLD);
+    icp.setEuclideanFitnessEpsilon(MSE_DIFFERENCE_THRESHOLD);
+    icp.setMaximumIterations(MAX_ICP_ITERATION);
+    icp.setTransformationEpsilon(TRANSFORMATION_DIFFERENCE_THRESHOLD);
 
     icp.align(result);
     Eigen::Matrix4f trans = icp.getFinalTransformation();
@@ -120,8 +135,6 @@ void Cloud::overlap_segmentation(Cloud &overlap, Cloud &nonoverlap)
 
     overlap.transformation_matrix = this->transformation_matrix;
     nonoverlap.transformation_matrix = this->transformation_matrix;
-
-    return ;
 }
 
 void Cloud::dense_clustering()
@@ -136,35 +149,132 @@ void Cloud::dense_clustering()
         if (ref_cluster_index[i] == -1)
             if (dense_cluster_expand(this->ref_point_cloud, ref_tree, ref_cluster_index, i, ref_cluster_id))
                 ref_cluster_id++;
-    return;
 }
 
-void Cloud::cluster_matching(std::vector<Cloud> &subclouds)
+void Cloud::constant_clustering()
 {
-    std::vector<pcl::PointCloud<pcl::PointXYZRGB>> ref_clusters(*std::max_element(this->ref_cluster_index.begin(), this->ref_cluster_index.end()));
-    pcl::PointCloud<pcl::PointXYZRGB> noise_cluster;
-    for (size_t i = 0; i < this->ref_cluster_index.size(); i++)
+    pcl::PointCloud<pcl::PointXYZRGB> centroids;
+    constant_cluster_centroid(this->ref_point_cloud, centroids);
+    this->ref_cluster_index.resize(this->ref_point_cloud.size(), -1);
+    pcl::KdTreeFLANN<pcl::PointXYZRGB> tree;
+    tree.setInputCloud(centroids.makeShared());
+    for (size_t i = 0; i < this->ref_point_cloud.size(); i++)
     {
-        if (this->ref_cluster_index[i] != 0)
-            ref_clusters[this->ref_cluster_index[i] - 1].push_back(this->ref_point_cloud[i]);
-        else
-            noise_cluster.push_back(this->ref_point_cloud[i]);
+        std::vector<int> _idx_(1);
+        std::vector<float> _dis_(1);
+        tree.nearestKSearch(this->ref_point_cloud[i], 1, _idx_, _dis_);
+        this->ref_cluster_index[i] = _idx_[0];
     }
+}
+
+void Cloud::ref_point_cloud_cluster_output(std::string address)
+{
+    std::vector<pcl::PointCloud<pcl::PointXYZRGB>> ref_clusters(
+            *std::max_element(this->ref_cluster_index.begin(),
+                              this->ref_cluster_index.end()) + 1);
+
+    for (size_t i = 0; i < ref_point_cloud.size(); i++)
+        ref_clusters[ref_cluster_index[i]].push_back(ref_point_cloud[i]);
 
     for (size_t i = 0; i < ref_clusters.size(); i++)
     {
-        pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
-        pcl::PointCloud<pcl::PointXYZRGB> result;
+        std::uint8_t r = rand() % 255;
+        std::uint8_t g = rand() % 255;
+        std::uint8_t b = rand() % 255;
+        for (size_t j = 0; j < ref_clusters[i].size(); j++)
+        {
+            ref_clusters[i][j].r = r;
+            ref_clusters[i][j].g = g;
+            ref_clusters[i][j].b = b;
+        }
+    }
 
-        icp.setInputSource(ref_clusters[i].makeShared());
-        icp.setInputTarget(this->point_cloud.makeShared());
+    for (size_t i = 0; i < ref_clusters.size(); i++)
+        pcl::io::savePLYFile(address + std::to_string(i) + ".ply", ref_clusters[i]);
 
-        icp.setMaxCorrespondenceDistance(MAX_CORRESPONDENCE_DISTANCE);
-        icp.setEuclideanFitnessEpsilon(TRANSFORMATION_DIFFERENCE_THRESHOLD);
+    return;
+}
 
-        icp.align(result);
 
-        Eigen::Matrix4f trans = icp.getFinalTransformation();
+void Cloud::cluster_matching(std::vector<Cloud> &subclouds)
+{
+    /* divide ref_point_cloud to several clusters */
+    std::vector<pcl::PointCloud<pcl::PointXYZRGB>> ref_clusters(
+            *std::max_element(this->ref_cluster_index.begin(),
+                              this->ref_cluster_index.end()) + 1);
+
+    for (size_t i = 0; i < ref_point_cloud.size(); i++)
+        ref_clusters[ref_cluster_index[i]].push_back(ref_point_cloud[i]);
+
+    /* use these clusters to do icp */
+    for (size_t i = 0; i < ref_clusters.size(); i++)
+    {
+
 
     }
+
+}
+
+void cloud_transformation(pcl::PointCloud<pcl::PointXYZRGB> &cloud,
+                                 Eigen::Matrix4f matrix)
+{
+    for (size_t i = 0; i < cloud.size(); i++)
+    {
+        float new_x = matrix(0, 0) * cloud[i].x
+                    + matrix(0, 1) * cloud[i].y
+                    + matrix(0, 2) * cloud[i].z
+                    + matrix(0, 3) * 1.0f;
+        float new_y = matrix(1, 0) * cloud[i].x
+                    + matrix(1, 1) * cloud[i].y
+                    + matrix(1, 2) * cloud[i].z
+                    + matrix(1, 3) * 1.0f;
+        float new_z = matrix(2, 0) * cloud[i].x
+                    + matrix(2, 1) * cloud[i].y
+                    + matrix(2, 2) * cloud[i].z
+                    + matrix(2, 3) * 1.0f;
+        cloud[i].x = new_x, cloud[i].y = new_y, cloud[i].z = new_z;
+    }
+}
+
+float local_icp(pcl::PointCloud<pcl::PointXYZRGB> &ref_cluster,
+                pcl::PointCloud<pcl::PointXYZRGB> &point_cloud,
+                Cloud &cloud)
+{
+    pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
+    pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree, ref_tree;
+    pcl::PointCloud<pcl::PointXYZRGB> result, matching_result;
+
+    icp.setInputSource(ref_cluster.makeShared());
+    icp.setInputTarget(point_cloud.makeShared());
+
+    ref_tree->setInputCloud(ref_cluster.makeShared());
+    tree->setInputCloud(point_cloud.makeShared());
+
+    icp.setSearchMethodSource(ref_tree);
+    icp.setSearchMethodTarget(tree);
+
+    icp.setMaxCorrespondenceDistance(MAX_CORRESPONDENCE_DISTANCE);
+    icp.setEuclideanFitnessEpsilon(MSE_DIFFERENCE_THRESHOLD);
+    icp.setMaximumIterations(MAX_ICP_ITERATION);
+    icp.setTransformationEpsilon(TRANSFORMATION_DIFFERENCE_THRESHOLD);
+
+    icp.align(result);
+
+    float mse = icp.getFitnessScore();
+    Eigen::Matrix4f matrix = icp.getFinalTransformation();
+
+    pcl::KdTreeFLANN<pcl::PointXYZRGB> result_tree;
+    result_tree.setInputCloud(result.makeShared());
+
+    for (size_t i = 0; i < point_cloud.size(); i++)
+    {
+        std::vector<int> _idx_(1);
+        std::vector<float> _dis_(1);
+        result_tree.nearestKSearch(point_cloud[i], 1, _idx_, _dis_);
+        if (_dis_[0] <= mse)
+            matching_result.push_back(point_cloud[i]);
+    }
+
+    cloud_transformation(matching_result, matrix.inverse());
+
 }
