@@ -7,6 +7,8 @@
  */
 #ifndef RINO_CONFIG_H
 #define RINO_CONFIG_H
+#include <zstd.h>
+#include <string>
 
 extern float MAX_CORRESPONDENCE_DISTANCE;
 extern float MSE_DIFFERENCE_THRESHOLD;
@@ -22,4 +24,6 @@ extern int DENSE_CLUSTERING_NEIGHBOR_NUMBER;
 
 extern int CONSTANT_CLUSTER_NUMBER;
 
+extern int CompressString(const std::string& src, std::string& dst, int compressionlevel);
+extern int DecompressString(const std::string& src, std::string& dst);
 #endif

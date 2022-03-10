@@ -27,6 +27,7 @@ public:
     pcl::PointCloud<pcl::PointXYZRGB> point_cloud;
 
     box(pcl::PointCloud<pcl::PointXYZRGB> &cloud);  /* initialization */
+
     int max_range();    /* identify the dimension that spans the greatest distance */
     pcl::PointXYZRGB compute_centroid();
 };
