@@ -59,6 +59,6 @@ extern void cloud_transformation(pcl::PointCloud<pcl::PointXYZRGB> &cloud,
 
 extern float local_icp(pcl::PointCloud<pcl::PointXYZRGB> &ref_cluster,
                        pcl::PointCloud<pcl::PointXYZRGB> &point_cloud,
-                       Cloud &cloud, std::set<int> &all_index);
+                       Cloud &cloud);
 
 #endif

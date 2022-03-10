@@ -202,6 +202,8 @@ void Octree::set_input_cloud(std::vector<pcl::PointCloud<pcl::PointXYZRGB>> &clo
     center.z = (clouds_range.max_z + clouds_range.min_z) / 2;
 
     this->tree.resize(cnt - 1);
+    this->points.resize(clouds.size());
+    this->leafs.resize(clouds.size());
     this->add_tree_node(clouds, 1, this->tree_range, center);
 }
 
