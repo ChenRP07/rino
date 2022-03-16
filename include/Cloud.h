@@ -39,6 +39,7 @@ public:
     void change_point_cloud(pcl::PointCloud<pcl::PointXYZRGB> &point_cloud);
     void change_ref_point_cloud(pcl::PointCloud<pcl::PointXYZRGB> &ref_point_cloud);
 
+
     void centroid_alignment();  /* translate point_cloud to align with ref_point_cloud */
     float total_base_icp();   /* transform point_cloud to align with ref_point_cloud */
     void overlap_segmentation(Cloud &, Cloud &);    /* segment both point_cloud and ref_point_cloud */
