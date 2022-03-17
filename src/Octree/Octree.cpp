@@ -161,7 +161,7 @@ int Octree::add_tree_node(std::vector<pcl::PointCloud<pcl::PointXYZRGB>> &clouds
         std::vector<std::vector<pcl::PointCloud<pcl::PointXYZRGB>>>
                 subclouds(8,std::vector<pcl::PointCloud<pcl::PointXYZRGB>>(clouds.size()));
         cloud_segmentation(clouds, subclouds, center);
-        std::cout<<clouds.size()<<std::endl;
+        
         for (size_t i = 0; i < subclouds[0].size(); i++)
         {
             uint8_t occ = 0x00;
@@ -227,6 +227,7 @@ pcl::PointXYZ Octree::set_input_cloud(std::vector<pcl::PointCloud<pcl::PointXYZR
     this->tree.resize(cnt - 1);
     this->leafs.resize(clouds.size());
     this->add_tree_node(clouds, 1, this->tree_range, center);
+
     return center;
 }
 
@@ -302,14 +303,14 @@ void Octree::decompression(std::ifstream &infile, int total_size, int GOF)
     {
         for (int j = 0; j < node_cnt; j++)
         {
-            int size_temp = 0;
-            while (all_data[data_idx] == (char)0xff)
-            {
-                size_temp += 254;
-                data_idx++;
-            }
-            size_temp += (int)(unsigned char)all_data[data_idx++];
-            leafs[i].push_back(size_temp);
+            // int size_temp = 0;
+            // while (all_data[data_idx] == (char)0xff)
+            // {
+            //     size_temp += 254;
+            //     data_idx++;
+            // }
+            // size_temp += (int)(unsigned char)all_data[data_idx++];
+            leafs[i].push_back((uint8_t)all_data[data_idx++]);
         }
     }
 
@@ -347,6 +348,7 @@ void Octree::reconstruct(std::vector<pcl::PointCloud<pcl::PointXYZRGB>> &clouds,
         Res /= 2;
     }
 
+
 //    for (int i = 0; i < clouds.size(); i++)
 //    {
 //        int point_residual_idx = 0;
@@ -362,6 +364,18 @@ void Octree::reconstruct(std::vector<pcl::PointCloud<pcl::PointXYZRGB>> &clouds,
 //            }
 //        }
 //    }
+
+    for (size_t i = 0; i < this->leafs.size(); i++)
+    {
+        for (size_t j = 0; j < this->leafs[i].size(); j++)
+        {
+            std::vector<int> pos;
+            occupation_pos(pos, this->leafs[i][j]);
+
+            for (size_t k = 0; k < pos.size(); k++)
+                clouds[i].push_back(new_point(tree_centers[tree_centers.size() - 1][j], pos[k]));
+        }
+    }
 }
 
 void cloud_merge(pcl::PointCloud<pcl::PointXYZRGB> &cloud, pcl::PointCloud<pcl::PointXYZRGB> &part)
@@ -390,7 +404,7 @@ int Octree_compression(std::ofstream &outfile, std::vector<Octree> &octrees,
     return all_data_result.size();
 }
 
-extern int residual_compression(std::ofstream &outfile, std::vector<Octree> &octrees,
+int residual_compression(std::ofstream &outfile, std::vector<Octree> &octrees,
                                 std::vector<int> &residual_size)
 {
     std::string all_data;
@@ -423,4 +437,47 @@ extern int residual_compression(std::ofstream &outfile, std::vector<Octree> &oct
     CompressString(all_data, all_data_result, 3);
     outfile << all_data_result;
     return all_data_result.size();
+}
+
+pcl::PointXYZRGB new_point(pcl::PointXYZ &center, int pos)
+{
+    pcl::PointXYZRGB npoint;
+    npoint.x = center.x;
+    npoint.y = center.y;
+    npoint.z = center.z;
+    if (pos == 0)
+    {
+        npoint.x += 1.0f;
+        npoint.y += 1.0f;
+        npoint.z += 1.0f;
+    }
+    else if (pos == 1)
+    {
+        npoint.x += 1.0f;
+        npoint.y += 1.0f;
+    }
+    else if (pos == 2)
+    {
+        npoint.x += 1.0f;
+        npoint.z += 1.0f;
+    }
+    else if (pos == 3)
+    {
+        npoint.x += 1.0f;
+    }
+    else if (pos == 4)
+    {
+        npoint.y += 1.0f;
+        npoint.z += 1.0f;
+    }
+    else if (pos == 5)
+    {
+        npoint.y += 1.0f;
+    }
+    else if (pos == 6)
+    {
+        npoint.z += 1.0f;
+    }
+    else if (pos == 7);
+    return npoint;
 }

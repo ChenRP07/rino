@@ -28,6 +28,8 @@ extern int occupation_cnt(char occ);
 extern uint8_t occupation_table[8];
 extern void occupation_pos(std::vector<int> &pos, uint8_t occ);
 extern void cloud_merge(pcl::PointCloud<pcl::PointXYZRGB> &cloud, pcl::PointCloud<pcl::PointXYZRGB> &part);
+extern pcl::PointXYZRGB new_point(pcl::PointXYZ &center, int pos);
+
 class Octree
 {
 public:

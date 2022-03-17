@@ -8,9 +8,21 @@ int main()
     pcl::io::loadPLYFile("../test/1.ply", cloud[0]);
     pcl::io::loadPLYFile("../test/1b.ply", cloud[1]);
     Octree tree;
-    tree.set_input_cloud(cloud);
+    pcl::PointXYZ center = tree.set_input_cloud(cloud);
     std::cout<<tree.min_resolution <<" " <<tree.tree_range<<std::endl;
     std::cout<<tree.leafs[0].size() <<" "<< tree.leafs[1].size()<<std::endl;
-    std::ofstream  outfile("../test/data.dat");
-    tree.compression(outfile);
+    std::ofstream outfile("../test/data.dat");
+    int cnt = tree.compression(outfile);
+    float range = tree.tree_range;
+
+    std::ifstream infile("../test/data.dat");
+    Octree tree1;
+    tree1.decompression(infile, cnt, 2);
+    std::cout<<tree1.min_resolution <<" " <<tree1.tree_range<<std::endl;
+    std::cout<<tree1.leafs[0].size() <<" "<< tree1.leafs[1].size()<<std::endl;
+    std::vector<pcl::PointCloud<pcl::PointXYZRGB>> clouds(2);
+    tree1.reconstruct(clouds, center, range, 1.0f);
+    pcl::io::savePLYFile("../test/2.ply", clouds[0]);
+    pcl::io::savePLYFile("../test/2b.ply", clouds[1]);
+
 }
