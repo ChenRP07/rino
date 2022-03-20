@@ -24,6 +24,9 @@ extern int DENSE_CLUSTERING_NEIGHBOR_NUMBER;
 
 extern int CONSTANT_CLUSTER_NUMBER;
 
+extern float NORMAL_ESTIMATION_RADIUS;
+extern float FPFH_ESTIMATION_RADIUS;
+
 extern int CompressString(const std::string& src, std::string& dst, int compressionlevel);
 extern int DecompressString(const std::string& src, std::string& dst);
 #endif

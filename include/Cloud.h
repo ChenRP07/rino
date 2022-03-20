@@ -18,8 +18,12 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/io/ply_io.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/features/fpfh.h>
+#include <pcl/search/kdtree.h>
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/registration/icp.h>
+#include <pcl/registration/ia_ransac.h>
 #include <eigen3/Eigen/Dense>
 
 #include "Cluster.h"
@@ -30,7 +34,7 @@ public:
     pcl::PointCloud<pcl::PointXYZRGB> point_cloud;  /* point cloud */
     pcl::PointCloud<pcl::PointXYZRGB> ref_point_cloud;  /* point cloud of i-frame, i.e. reference cloud */
     Eigen::Matrix4f transformation_matrix; /* the transformation matrix from original cloud to this */
-    std::vector<int> ref_cluster_index;
+    std::vector<pcl::PointCloud<pcl::PointXYZRGB>> ref_clusters;
 
     Cloud();    /* constructor */
     int set_point_cloud(std::string);  /* input point cloud */
@@ -44,13 +48,12 @@ public:
     float total_base_icp();   /* transform point_cloud to align with ref_point_cloud */
     void overlap_segmentation(Cloud &, Cloud &);    /* segment both point_cloud and ref_point_cloud */
 
-    void dense_clustering();    /* dense based clustering */
     void constant_clustering(); /* clustering point clouds into blocks
                                 with approximately the same number of points */
 
     void cluster_matching(std::vector<Cloud> &subclouds);
 
-    void ref_point_cloud_cluster_output(std::string address);
+    float local_icp(int ref_cluster_idx, Cloud &cloud);
     
 };
 
