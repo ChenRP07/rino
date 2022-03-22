@@ -233,7 +233,6 @@ pcl::PointXYZ Octree::set_input_cloud(std::vector<pcl::PointCloud<pcl::PointXYZR
         cnt++;
         res /= 2.0f;
     }
-
     pcl::PointXYZ center;
     center.x = std::floor((clouds_range.max_x + clouds_range.min_x) / 2);
     center.y = std::floor((clouds_range.max_y + clouds_range.min_y) / 2);
