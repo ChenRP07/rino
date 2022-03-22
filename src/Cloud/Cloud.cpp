@@ -171,9 +171,7 @@ void Cloud::cluster_matching(std::vector<Cloud> &subclouds)
 
     /* use these clusters to do icp */
     for (size_t i = 0; i < this->ref_clusters.size(); i++)
-    {
         this->local_icp(i, subclouds[i]);
-    }
 
     std::vector<pcl::KdTreeFLANN<pcl::PointXYZRGB>> kdtrees(this->ref_clusters.size());
     for (size_t i = 0; i < this->ref_clusters.size(); i++)

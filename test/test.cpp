@@ -14,15 +14,20 @@ int main()
     std::ofstream outfile("../test/data.dat");
     int cnt = tree.compression(outfile);
     float range = tree.tree_range;
+    std::vector<uint8_t> colors;
+    tree.color_compression(colors);
+    jpeg_encoder("../test/123.jpg", colors, 70);
 
-    std::ifstream infile("../test/data.dat");
-    Octree tree1;
-    tree1.decompression(infile, cnt, 2);
-    std::cout<<tree1.min_resolution <<" " <<tree1.tree_range<<std::endl;
-    std::cout<<tree1.leafs[0].size() <<" "<< tree1.leafs[1].size()<<std::endl;
-    std::vector<pcl::PointCloud<pcl::PointXYZRGB>> clouds(2);
-    tree1.reconstruct(clouds, center, range, 1.0f);
-    pcl::io::savePLYFile("../test/2.ply", clouds[0]);
-    pcl::io::savePLYFile("../test/2b.ply", clouds[1]);
+//    std::vector<uint8_t> all_colors;
+//    jpeg_decoder("../test/123.jpg", all_colors);
+//    std::ifstream infile("../test/data.dat");
+//    Octree tree1;
+//    tree1.decompression(infile);
+//    std::cout<<tree1.min_resolution <<" " <<tree1.tree_range<<std::endl;
+//    std::cout<<tree1.leafs[0].size() <<" "<< tree1.leafs[1].size()<<std::endl;
+//    std::vector<pcl::PointCloud<pcl::PointXYZRGB>> clouds(2);
+//    tree1.reconstruct(clouds, center, range, all_colors);
+//    pcl::io::savePLYFile("../test/2.ply", clouds[0]);
+//    pcl::io::savePLYFile("../test/2b.ply", clouds[1]);
 
 }

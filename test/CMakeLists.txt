@@ -1,6 +1,6 @@
 add_executable(decoder.exe decoder.cpp)
 
-target_link_libraries(decoder.exe libCloud.so libCluster.so libconfig.so libOctree.so libzstd.so ${PCL_LIBRARIES} libboost_thread.so.1.71.0)
+target_link_libraries(decoder.exe libCloud.so libCluster.so libconfig.so libOctree.so libzstd.so ${PCL_LIBRARIES} libboost_thread.so.1.71.0 parallel_decoder.so)
 
 add_executable(psnr.exe ass.cpp)
 

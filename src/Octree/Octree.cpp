@@ -5,22 +5,22 @@ cloud_range::cloud_range(std::vector<pcl::PointCloud<pcl::PointXYZRGB>> &clouds)
     max_x = -FLT_MAX, max_y = -FLT_MAX, max_z = -FLT_MAX;
     min_x = FLT_MAX, min_y = FLT_MAX, min_z = FLT_MAX;
 
-    for (size_t i = 0; i < clouds.size(); i++)
+    for (auto & cloud : clouds)
     {
-        for (size_t j = 0; j < clouds[i].size(); j++)
+        for (auto & j : cloud)
         {
-            max_x = max_x > clouds[i][j].x ? max_x : clouds[i][j].x;
-            max_y = max_y > clouds[i][j].y ? max_y : clouds[i][j].y;
-            max_z = max_z > clouds[i][j].z ? max_z : clouds[i][j].z;
+            max_x = max_x > j.x ? max_x : j.x;
+            max_y = max_y > j.y ? max_y : j.y;
+            max_z = max_z > j.z ? max_z : j.z;
 
-            min_x = min_x < clouds[i][j].x ? min_x : clouds[i][j].x;
-            min_y = min_y < clouds[i][j].y ? min_y : clouds[i][j].y;
-            min_z = min_z < clouds[i][j].z ? min_z : clouds[i][j].z;
+            min_x = min_x < j.x ? min_x : j.x;
+            min_y = min_y < j.y ? min_y : j.y;
+            min_z = min_z < j.z ? min_z : j.z;
         }
     }
 }
 
-float cloud_range::max_range()
+float cloud_range::max_range() const
 {
     return std::max(std::max(this->max_x - this->min_x, this->max_y - this->min_y),
                     this->max_z - this->min_z);
@@ -28,8 +28,8 @@ float cloud_range::max_range()
 
 bool clouds_empty(std::vector<pcl::PointCloud<pcl::PointXYZRGB>> &clouds)
 {
-    for (size_t i = 0; i < clouds.size(); i++)
-        if (!clouds[i].empty())
+    for (auto & cloud : clouds)
+        if (!cloud.empty())
             return false;
     return true;
 }
@@ -130,7 +130,7 @@ void cloud_segmentation(std::vector<pcl::PointCloud<pcl::PointXYZRGB>> &cloud,
 int occupation_cnt(char occ)
 {
     int cnt = 0;
-    uint8_t temp = (uint8_t)occ;
+    auto temp = (uint8_t)occ;
     while (temp != 0)
     {
         cnt += temp % 2;
@@ -151,33 +151,49 @@ void occupation_pos(std::vector<int> &pos, uint8_t occ)
 int Octree::add_tree_node(std::vector<pcl::PointCloud<pcl::PointXYZRGB>> &clouds, int height, float Res,
                           pcl::PointXYZ center)
 {
+    /* occupation rate 0x00 */
     uint8_t occupy = 0x00;
+    /* if there is no point, return 0 */
     if (clouds_empty(clouds))
     {
         return 0;
     }
+    /* leaf node */
     else if (Res <= this->min_resolution)
     {
+        /* divide to eight parts */
         std::vector<std::vector<pcl::PointCloud<pcl::PointXYZRGB>>>
                 subclouds(8,std::vector<pcl::PointCloud<pcl::PointXYZRGB>>(clouds.size()));
         cloud_segmentation(clouds, subclouds, center);
-        
+
+        /* for each point cloud */
         for (size_t i = 0; i < subclouds[0].size(); i++)
         {
-            uint8_t occ = 0x00;
+            uint8_t occ = 0x00; /* occupation rate */
+            std::vector<point_color> colors;
             for (size_t j = 0; j < 7; j++)
             {
                 if (subclouds[j][i].size() == 0)
                     occ |= 0;
                 else
+                {
                     occ |= 1;
+                    colors.emplace_back(subclouds[j][i], j);
+                }
                 occ <<= 1;
             }
             if (subclouds[7][i].size() == 0)
                 occ |= 0;
             else
+            {
                 occ |= 1;
+                colors.emplace_back(subclouds[7][i], 7);
+            }
             this->leafs[i].push_back(occ);
+            if (i == 0)
+                this->colors_i.push_back(colors);
+            else if (i == 1)
+                this->colors_p.push_back(colors);
         }
         return 1;
     }
@@ -199,7 +215,6 @@ int Octree::add_tree_node(std::vector<pcl::PointCloud<pcl::PointXYZRGB>> &clouds
         this->tree[height - 1].push_back(occupy);
         return 1;
     }
-    return 0;
 }
 
 pcl::PointXYZ Octree::set_input_cloud(std::vector<pcl::PointCloud<pcl::PointXYZRGB>> &clouds)
@@ -233,58 +248,74 @@ pcl::PointXYZ Octree::set_input_cloud(std::vector<pcl::PointCloud<pcl::PointXYZR
 
 int Octree::compression(std::ofstream &outfile)
 {
-    //int leaf_bit = std::ceil(std::log2(std::pow(this->min_resolution, 3)));
-    //int residual_bit = std::ceil(std::log2(2 * std::ceil(this->min_resolution / 2)));
-
     std::string all_data;
     all_data += (char)this->tree.size();
 
-    for (size_t i = 0; i < this->tree.size(); i++)
-        for (size_t j = 0; j < this->tree[i].size(); j++)
-            all_data += (char)this->tree[i][j];
+    for (auto & i : this->tree)
+        for (unsigned char j : i)
+            all_data += (char)j;
 
-    for (size_t i = 0; i < this->leafs.size(); i++)
-        for (size_t j = 0; j < this->leafs[i].size(); j++)
+    std::vector<uint8_t> merge_data(this->leafs[0].size());
+    std::vector<int> ind_idx;
+    std::vector<uint8_t> ind_data;
+    for (size_t i = 0; i < this->leafs[0].size(); i++)
+    {
+        if (average_hamming_distance(this->leafs[0][i], this->leafs[1][i]) <= MIN_MERGE_HAMMING_DISTANCE)
         {
-//            int temp = this->leafs[i][j];
-//            while (temp >= 255)
-//            {
-//                all_data += (char)0xff;
-//                temp -= 254;
-//            }
-//            all_data += (char)temp;
-            all_data += this->leafs[i][j];
+            merge_data[i] = (this->leafs[0][i] | this->leafs[1][i]);
+            merge_color(this->colors_i[i], this->colors_p[i]);
         }
+        else
+        {
+            merge_data[i] = this->leafs[0][i];
+            ind_idx.push_back(i);
+            ind_data.push_back(this->leafs[1][i]);
+        }
+    }
 
-    std::string all_data_result = "";
+    for (uint8_t i : merge_data)
+        all_data += (char)i;
+    int last_idx = 0;
+    for (size_t i = 0; i < ind_idx.size(); i++)
+    {
+        int mis_idx = ind_idx[i] - last_idx;
+        if (mis_idx > 127)
+        {
+            uint8_t res_h = 0x80;
+            uint8_t res_l = 0x00;
+            res_h |= (uint8_t)(mis_idx / 256);
+            res_l = (uint8_t)(mis_idx % 256);
+            all_data.push_back((char)res_h);
+            all_data.push_back((char)res_l);
+            all_data.push_back((char)ind_data[i]);
+        }
+        else
+        {
+            auto res = (uint8_t)mis_idx;
+            all_data.push_back((char)res);
+            all_data.push_back((char)ind_data[i]);
+        }
+        last_idx = ind_idx[i];
+    }
+
+    std::string all_data_result;
     CompressString(all_data, all_data_result, 3);
     outfile << all_data_result;
     return all_data_result.size();
 }
 
-void Octree::decompression(std::ifstream &infile, int total_size, int GOF)
+void Octree::decompression(std::string &all_data_result)
 {
-    /* read from file */
-    std::string all_data_result;
-    // std::ostringstream buf;
-    // buf << infile.rdbuf();
-    // all_data_result = buf.str();
-    char temp;
-    while(total_size--)
-    {
-        infile.get(temp);
-        all_data_result += temp;
-    }
     /* decompress by zstd */
     std::string all_data;
     DecompressString(all_data_result, all_data);
 
     /* generate an octree */
     size_t data_idx = 0;
-    int tree_height = (int) all_data[data_idx++];
+    int tree_height = (int) (uint8_t)all_data[data_idx++];
 
     this->tree.resize(tree_height);
-    this->leafs.resize(GOF);
+    this->leafs.resize(2);
     //this->points.resize(GOF);
 
     int node_cnt = 1;
@@ -299,33 +330,34 @@ void Octree::decompression(std::ifstream &infile, int total_size, int GOF)
         node_cnt = new_cnt;
     }
 
-    for (int i = 0; i < GOF; i++)
+    for (int i = 0; i < node_cnt; i++)
+        leafs[0].push_back((uint8_t)all_data[data_idx]),
+        leafs[1].push_back((uint8_t)all_data[data_idx++]);
+    std::vector<int> ind_idx;
+    std::vector<uint8_t> ind_data;
+    int last_idx = 0;
+    while (data_idx < all_data.size())
     {
-        for (int j = 0; j < node_cnt; j++)
+        int idx;
+        if ((all_data[data_idx] & 0x80) == 0)
+            idx = (uint8_t)all_data[data_idx++];
+        else
         {
-            // int size_temp = 0;
-            // while (all_data[data_idx] == (char)0xff)
-            // {
-            //     size_temp += 254;
-            //     data_idx++;
-            // }
-            // size_temp += (int)(unsigned char)all_data[data_idx++];
-            leafs[i].push_back((uint8_t)all_data[data_idx++]);
+            int idx_h = (uint8_t)all_data[data_idx++] & 0x7f;
+            int idx_l = (uint8_t)all_data[data_idx++];
+            idx = idx_h * 256 + idx_l;
         }
+        ind_idx.push_back(last_idx + idx);
+        ind_data.push_back((uint8_t)all_data[data_idx++]);
+        last_idx += idx;
     }
 
-//    for (int i = 0; i < leafs.size(); i++)
-//    {
-//        for (int j = 0; j < leafs[i].size(); j++)
-//        {
-//            for (int k = 0; k < leafs[i][j] * 3; k++)
-//                points[i].push_back((int)all_data[data_idx++]);
-//        }
-//    }
+    for (size_t i = 0; i < ind_idx.size(); i++)
+        leafs[1][ind_idx[i]] = ind_data[i];
 }
 
 void Octree::reconstruct(std::vector<pcl::PointCloud<pcl::PointXYZRGB>> &clouds, pcl::PointXYZ center,
-                         float Range, float min_res)
+                         float Range, std::vector<uint8_t> &colors, int color_index)
 {
     clouds.resize(this->leafs.size());
 
@@ -339,32 +371,15 @@ void Octree::reconstruct(std::vector<pcl::PointCloud<pcl::PointXYZRGB>> &clouds,
         {
             std::vector<int> pos;
             occupation_pos(pos, this->tree[i][j]);
-            for (int h = 0; h < pos.size(); h++)
+            for (int po : pos)
             {
-                pcl::PointXYZ ncenter = new_center(tree_centers[i][j], pos[h], Res / 2);
+                pcl::PointXYZ ncenter = new_center(tree_centers[i][j], po, Res / 2);
                 tree_centers[i + 1].push_back(ncenter);
             }
         }
         Res /= 2;
     }
-
-
-//    for (int i = 0; i < clouds.size(); i++)
-//    {
-//        int point_residual_idx = 0;
-//        for (int j = 0; j < this->leafs[i].size(); j++)
-//        {
-//            for (int h = 0; h < this->leafs[i][j]; h++)
-//            {
-//                pcl::PointXYZRGB pts;
-//                pts.x = tree_centers[tree_centers.size() - 1][j].x + this->points[i][point_residual_idx++];
-//                pts.y = tree_centers[tree_centers.size() - 1][j].y + this->points[i][point_residual_idx++];
-//                pts.z = tree_centers[tree_centers.size() - 1][j].z + this->points[i][point_residual_idx++];
-//                clouds[i].push_back(pts);
-//            }
-//        }
-//    }
-
+    size_t color_idx = color_index;
     for (size_t i = 0; i < this->leafs.size(); i++)
     {
         for (size_t j = 0; j < this->leafs[i].size(); j++)
@@ -372,79 +387,31 @@ void Octree::reconstruct(std::vector<pcl::PointCloud<pcl::PointXYZRGB>> &clouds,
             std::vector<int> pos;
             occupation_pos(pos, this->leafs[i][j]);
 
-            for (size_t k = 0; k < pos.size(); k++)
-                clouds[i].push_back(new_point(tree_centers[tree_centers.size() - 1][j], pos[k]));
+            for (int po : pos)
+                clouds[i].push_back(new_point(tree_centers[tree_centers.size() - 1][j], po,
+                                              colors[color_idx], colors[color_idx + 1],
+                                              colors[color_idx + 2])), color_idx += 3;
         }
     }
 }
 
 void cloud_merge(pcl::PointCloud<pcl::PointXYZRGB> &cloud, pcl::PointCloud<pcl::PointXYZRGB> &part)
 {
+    size_t old_size = cloud.size();
+    cloud.resize(old_size + part.size());
     for (size_t i = 0; i < part.size(); i++)
-        cloud.push_back(part[i]);
+        cloud[i + old_size] = part[i];
 }
 
-int Octree_compression(std::ofstream &outfile, std::vector<Octree> &octrees,
-                       std::vector<int> &tree_size)
-{
-    std::string all_data;
-    tree_size.resize(octrees.size());
-    for (size_t i = 0; i < octrees.size(); i++)
-    {
-        int cnt = all_data.size();
-        for (size_t j = 0; j < octrees[i].tree.size(); j++)
-            for (size_t k = 0; k < octrees[i].tree[j].size(); k++)
-                all_data += (char) octrees[i].tree[j][k];
-        tree_size[i] = all_data.size() - cnt;
-    }
-
-    std::string all_data_result;
-    CompressString(all_data, all_data_result, 3);
-    outfile << all_data_result;
-    return all_data_result.size();
-}
-
-int residual_compression(std::ofstream &outfile, std::vector<Octree> &octrees,
-                                std::vector<int> &residual_size)
-{
-    std::string all_data;
-    residual_size.resize(octrees.size());
-    for (size_t i = 0; i < octrees.size(); i++)
-    {
-        int cnt = all_data.size();
-        for (size_t j = 0; j < octrees[i].leafs.size(); j++)
-        {
-            for (size_t k = 0; k < octrees[i].leafs[j].size(); k++)
-            {
-//                int temp = octrees[i].leafs[j][k];
-//                while (temp >= 255)
-//                {
-//                    all_data += (char)0xff;
-//                    temp -= 254;
-//                }
-//                all_data += (char)temp;
-                all_data += (char)octrees[i].leafs[j][k];
-            }
-        }
-
-//        for (size_t j = 0; j < octrees[i].points.size(); j++)
-//            for (size_t k = 0; k < octrees[i].points[j].size(); k++)
-//                all_data += (char)octrees[i].points[j][k];
-        residual_size[i] = all_data.size() - cnt;
-    }
-
-    std::string all_data_result;
-    CompressString(all_data, all_data_result, 3);
-    outfile << all_data_result;
-    return all_data_result.size();
-}
-
-pcl::PointXYZRGB new_point(pcl::PointXYZ &center, int pos)
+pcl::PointXYZRGB new_point(pcl::PointXYZ &center, int pos, uint8_t red, uint8_t green, uint8_t blue)
 {
     pcl::PointXYZRGB npoint;
     npoint.x = center.x;
     npoint.y = center.y;
     npoint.z = center.z;
+    npoint.r = red;
+    npoint.g = green;
+    npoint.b = blue;
     if (pos == 0)
     {
         npoint.x += 1.0f;
@@ -478,6 +445,82 @@ pcl::PointXYZRGB new_point(pcl::PointXYZ &center, int pos)
     {
         npoint.z += 1.0f;
     }
-    else if (pos == 7);
     return npoint;
+}
+
+float average_hamming_distance(uint8_t occ_i, uint8_t occ_p)
+{
+    return (float)occupation_cnt((char)(occ_i ^ occ_p)) /
+    (float)(std::min(occupation_cnt((char)occ_i),
+                     occupation_cnt((char)occ_p)) + 1);
+}
+
+point_color::point_color(pcl::PointXYZRGB point, int pos)
+{
+    this->red = point.r;
+    this->green = point.g;
+    this->blue = point.b;
+    this->node_pos = pos;
+}
+
+point_color::point_color(const pcl::PointCloud<pcl::PointXYZRGB>& points, int pos)
+{
+    this->red = 0, this->green = 0, this->blue = 0;
+    for (auto & point : points)
+        this->red += point.r, this->green += point.g, this->blue += point.b;
+    this->node_pos = pos;
+}
+
+point_color::point_color(const point_color &point)
+{
+    this->red = point.red;
+    this->green = point.green;
+    this->blue = point.blue;
+    this->node_pos = point.node_pos;
+}
+
+point_color& point_color::operator=(const point_color &point)
+{
+    this->red = point.red;
+    this->green = point.green;
+    this->blue = point.blue;
+    this->node_pos = point.node_pos;
+    return *this;
+}
+
+bool point_color::operator<(const point_color &point) const
+{
+    return this->node_pos < point.node_pos;
+}
+
+void merge_color(std::vector<point_color> &color_i, std::vector<point_color> &color_p)
+{
+
+    std::set<int> color_i_cnt, color_p_cnt;
+    for (auto & i : color_i)
+        color_i_cnt.insert(i.node_pos);
+    for (auto & p : color_p)
+        color_p_cnt.insert(p.node_pos);
+    for (auto & i : color_i)
+        if (!color_p_cnt.count(i.node_pos))
+            color_p.push_back(i);
+    for (auto & p : color_p)
+        if (!color_i_cnt.count(p.node_pos))
+            color_i.push_back(p);
+    std::sort(color_i.begin(), color_i.end());
+    std::sort(color_p.begin(), color_p.end());
+}
+
+void Octree::color_compression(std::vector<uint8_t> &all_colors)
+{
+    for (auto & i : this->colors_i)
+        for (auto & j : i)
+            all_colors.push_back(j.red),
+            all_colors.push_back(j.green),
+            all_colors.push_back(j.blue);
+    for (auto & i : this->colors_p)
+        for (auto & j : i)
+            all_colors.push_back(j.red),
+            all_colors.push_back(j.green),
+            all_colors.push_back(j.blue);
 }

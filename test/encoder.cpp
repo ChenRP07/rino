@@ -10,25 +10,9 @@
 
 std::queue<int> frame_pool;
 std::string filename = "../data/loot/loot_vox10_";
-int GOF = 3;
-std::ofstream data_output("output.txt");
-std::ofstream data_output1("output1.txt");
+int GOF = 2;
 std::mutex data_output_mutex;
 std::mutex pool_mutex;
-
-float Hamming(std::vector<uint8_t> &points)
-{
-    int min_cnt = INT_MAX;
-    for (int i = 0; i < points.size(); i++)
-        if (occupation_cnt((char)points[i]) < min_cnt)
-            min_cnt = occupation_cnt((char)points[i]);
-    int sum_hamming = 0;
-    for (int i = 0; i < points.size(); i++)
-        for (int j = i + 1; j < points.size(); j++)
-            sum_hamming += occupation_cnt((char)(points[i] ^ points[j]));
-    data_output1 << sum_hamming << " " << min_cnt + 1 << " " << (float)(sum_hamming) / (float)(min_cnt + 1) << std::endl;
-    return (float)(sum_hamming) / (float)(min_cnt + 1);
-}
 
 void proc()
 {
@@ -70,7 +54,8 @@ void proc()
         }
 
         std::vector<std::vector<pcl::PointCloud<pcl::PointXYZRGB>>> compression(subclouds[0].size());
-
+        pcl::io::savePLYFile("../test/1.ply", subclouds[0][0].ref_point_cloud);
+        pcl::io::savePLYFile("../test/1b.ply", subclouds[0][0].point_cloud);
         for (size_t j = 0; j < subclouds[0].size(); j++)
         {
             compression[j].push_back(subclouds[0][j].ref_point_cloud);
@@ -80,54 +65,36 @@ void proc()
 
         /* number of clusters */
         aux_file << subclouds[0].size() << std::endl;
-        //std::vector<Octree> octrees(compression.size());
+        std::vector<uint8_t> all_colors;
         std::ofstream outfile("../test/data/outdata_" + std::to_string(i) + ".dat", std::ios::binary);
         for (size_t j = 0; j < compression.size(); j++)
         {
             Octree tree;
             pcl::PointXYZ center = tree.set_input_cloud(compression[j]);
-            for (size_t h = 0; h < tree.leafs[0].size(); h++)
-            {
-                std::vector<uint8_t> occs;
-                for (size_t k = 0; k < tree.leafs.size(); k++)
-                    occs.push_back(tree.leafs[k][h]);
-                //data_output1 << Hamming(occs) << std::endl;
-                Hamming(occs);
-            }
+
             int str_cnt = tree.compression(outfile);
-            //pcl::PointXYZ center = octrees[j].set_input_cloud(compression[j]);
+            tree.color_compression(all_colors);
             aux_file << str_cnt << std::endl;
             aux_file << center.x << " " << center.y << " " << center.z << " " << tree.tree_range << std::endl;
             for (size_t h = 0; h < subclouds.size(); h++)
                 aux_file << subclouds[h][j].transformation_matrix << std::endl;
-            //std::cout<<"compress "<<j<<std::endl;
         }
-//         std::vector<int> tree_size, residual_size;
-//         int tree_cnt = Octree_compression(outfile, octrees, tree_size);
-//         int res_cnt = residual_compression(outfile, octrees, residual_size);
-//         data_output_mutex.lock();
-//         data_output << i << " "
-//                     << tree_cnt << " " << std::accumulate(tree_size.begin(), tree_size.end(), 0) << " "
-//                     << res_cnt << " " << std::accumulate(residual_size.begin(), residual_size.end(), 0)
-//                     << std::endl;
-//
-//
-//         data_output_mutex.unlock();
+        jpeg_encoder("../test/data/outdata_" + std::to_string(i) + ".jpg", all_colors, 70);
     }
 }
 int main()
 {
-//    int start = 1000;
-//
-//    for (int i = start; i < start + 300; i += GOF)
-//        frame_pool.push(i);
-//    std::thread ths[50];
-//    for (int h = 0; h < 50; h++)
-//        ths[h] = std::thread(proc);
-//    for (auto &th : ths)
-//        th.join();
-    frame_pool.push(1000);
-    proc();
+    int start = 1000;
+
+    for (int i = start; i < start + 300; i += GOF)
+        frame_pool.push(i);
+    std::thread ths[50];
+    for (int h = 0; h < 50; h++)
+        ths[h] = std::thread(proc);
+    for (auto &th : ths)
+        th.join();
+//    frame_pool.push(1000);
+//    proc();
 
     return 0;
 }
