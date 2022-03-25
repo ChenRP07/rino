@@ -7,7 +7,7 @@
 
 #include <vector>
 #include <queue>
-#include <float.h>
+#include <cfloat>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/search/kdtree.h>
@@ -24,18 +24,13 @@ public:
     float min_y;
     float max_z;
     float min_z;
-    pcl::PointCloud<pcl::PointXYZRGB> point_cloud;
+    std::vector<pcl::PointXYZRGB> point_cloud;
 
-    box(pcl::PointCloud<pcl::PointXYZRGB> &cloud);  /* initialization */
+    explicit box(pcl::PointCloud<pcl::PointXYZRGB> &cloud);  /* initialization */
 
-    int max_range();    /* identify the dimension that spans the greatest distance */
+    int max_range() const;    /* identify the dimension that spans the greatest distance */
     pcl::PointXYZRGB compute_centroid();
 };
-
-extern bool dense_cluster_expand(pcl::PointCloud<pcl::PointXYZRGB> &cloud,
-                                 pcl::KdTreeFLANN<pcl::PointXYZRGB> &tree,
-                                 std::vector<int> &cluster_index,
-                                 int point_index, int cluster_id);
 
 extern void constant_cluster_centroid(pcl::PointCloud<pcl::PointXYZRGB> &cloud,
                                       pcl::PointCloud<pcl::PointXYZRGB> &centroids);

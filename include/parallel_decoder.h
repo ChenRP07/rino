@@ -12,6 +12,9 @@
 #include <sys/types.h>
 #include <ctime>
 #include <utility>
+#include <sys/time.h>
+#include <unistd.h>
+#include <iomanip>
 
 struct merge_task
 {
@@ -23,6 +26,7 @@ struct merge_task
     merge_task(const merge_task &task);
     merge_task& operator = (const merge_task &task);
 };
+extern void savePly(const std::string& filename, pcl::PointCloud<pcl::PointXYZRGB>& cloud);
 
 class parallel_decoder
 {

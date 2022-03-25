@@ -104,7 +104,7 @@ Octree::Octree()
 Octree::Octree(float range)
 {
     int log_range = std::ceil(std::log2(range));
-    this->tree_range = std::pow(2.0f, log_range);
+    this->tree_range = (float)std::pow(2.0f, log_range);
 }
 
 void cloud_segmentation(std::vector<pcl::PointCloud<pcl::PointXYZRGB>> &cloud,
@@ -223,7 +223,7 @@ pcl::PointXYZ Octree::set_input_cloud(std::vector<pcl::PointCloud<pcl::PointXYZR
     cloud_range clouds_range(clouds);
     this->tree_range = clouds_range.max_range();
     int log_range = std::ceil(std::log2(this->tree_range));
-    this->tree_range = std::pow(2.0f, log_range);
+    this->tree_range = (float)std::pow(2.0f, log_range);
 
     /* calculate the tree height */
     int cnt = 1;
@@ -233,6 +233,7 @@ pcl::PointXYZ Octree::set_input_cloud(std::vector<pcl::PointCloud<pcl::PointXYZR
         cnt++;
         res /= 2.0f;
     }
+
     pcl::PointXYZ center;
     center.x = std::floor((clouds_range.max_x + clouds_range.min_x) / 2);
     center.y = std::floor((clouds_range.max_y + clouds_range.min_y) / 2);
@@ -267,7 +268,7 @@ int Octree::compression(std::ofstream &outfile)
         else
         {
             merge_data[i] = this->leafs[0][i];
-            ind_idx.push_back(i);
+            ind_idx.push_back((int)i);
             ind_data.push_back(this->leafs[1][i]);
         }
     }
@@ -300,7 +301,7 @@ int Octree::compression(std::ofstream &outfile)
     std::string all_data_result;
     CompressString(all_data, all_data_result, 3);
     outfile << all_data_result;
-    return all_data_result.size();
+    return (int)all_data_result.size();
 }
 
 void Octree::decompression(std::string &all_data_result)
@@ -364,9 +365,9 @@ void Octree::reconstruct(std::vector<pcl::PointCloud<pcl::PointXYZRGB>> &clouds,
 
     tree_centers[0].push_back(center);
     float Res = Range;
-    for (int i = 0; i < tree_centers.size() - 1; i++)
+    for (int i = 0; i < (int)tree_centers.size() - 1; i++)
     {
-        for (int j = 0; j < tree_centers[i].size(); j++)
+        for (int j = 0; j < (int)tree_centers[i].size(); j++)
         {
             std::vector<int> pos;
             occupation_pos(pos, this->tree[i][j]);
@@ -394,13 +395,6 @@ void Octree::reconstruct(std::vector<pcl::PointCloud<pcl::PointXYZRGB>> &clouds,
     }
 }
 
-void cloud_merge(pcl::PointCloud<pcl::PointXYZRGB> &cloud, pcl::PointCloud<pcl::PointXYZRGB> &part)
-{
-    size_t old_size = cloud.size();
-    cloud.resize(old_size + part.size());
-    for (size_t i = 0; i < part.size(); i++)
-        cloud[i + old_size] = part[i];
-}
 
 pcl::PointXYZRGB new_point(pcl::PointXYZ &center, int pos, uint8_t red, uint8_t green, uint8_t blue)
 {

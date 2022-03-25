@@ -45,7 +45,7 @@ void parallel_decoder::set_aux_information(const std::string& aux_file)
 
     this->resize_containers();  /* allocate memory */
 
-    for (size_t i = 0; i < this->clusters_cnt; i++) /* for all clusters */
+    for (int i = 0; i < this->clusters_cnt; i++) /* for all clusters */
     {
         aux_in >> str_cnt[i];   /* compressed string length */
         aux_in >> centers[i].x >> centers[i].y >> centers[i].z; /* octree center */
@@ -123,6 +123,7 @@ void parallel_decoder::set_color_information(std::string color_file)
     gettimeofday(&this->time1, nullptr);    /* timer1 */
 
     jpeg_decoder(std::move(color_file), this->color_info);   /* jpeg decode */
+    //std::cout << color_info.size() << std::endl;
     gettimeofday(&this->time2, nullptr);    /* timer2 and output consumed time */
     std::cout << "JPEG decoder, using " << std::fixed << std::setprecision(3)
               << (float)(this->time2.tv_sec - this->time1.tv_sec) + (float)(this->time2.tv_usec - this->time1.tv_usec) / 1000000
@@ -139,7 +140,7 @@ void parallel_decoder::set_color_information(std::string color_file)
             for (unsigned char h : leaf) /* for each leaf */
                 color_cnt += occupation_cnt((char)h);  /* count point number */
         }
-        this->all_colors[i] = (color_index + color_cnt * 3);  /* allocate memory */
+        this->all_colors[i] = color_index;  /* allocate memory */
         color_index += (color_cnt * 3);
         this->reconstruction_task_pool.push((int)i);
     }
@@ -170,7 +171,7 @@ void parallel_decoder::octree_cloud_reconstruction()
         this->trees[index].reconstruct(this->point_clusters[index], this->centers[index],
                                        this->tree_range[index], this->color_info,
                                        this->all_colors[index]);
-        cloud_transformation(this->point_clusters[index][1], this->trans[index]);
+        cloud_transformation(this->point_clusters[index][1], this->trans[index].inverse());
     }
 }
 
@@ -253,8 +254,8 @@ void parallel_decoder::parallel_cloud_merge()
 void parallel_decoder::save_point_cloud(const std::string& cloud_name1, const std::string& cloud_name2)
 {
     gettimeofday(&this->time1, nullptr);    /* timer1 */
-    pcl::io::savePLYFile(cloud_name1, this->point_clouds[0]);
-    pcl::io::savePLYFile(cloud_name2, this->point_clouds[1]);
+    savePly(cloud_name1, this->point_clouds[0]);
+    savePly(cloud_name2, this->point_clouds[1]);
     gettimeofday(&this->time2, nullptr);    /* timer2 and output consumed time */
     std::cout << "Save point cloud, using " << std::fixed << std::setprecision(3)
               << (float)(this->time2.tv_sec - this->time1.tv_sec) + (float)(this->time2.tv_usec - this->time1.tv_usec) / 1000000
@@ -277,4 +278,26 @@ void parallel_decoder::decoder(const std::string& aux_file, const std::string& g
     this->parallel_cloud_merge();
 
     this->save_point_cloud(cloud_name1, cloud_name2);
+}
+
+void savePly(const std::string& filename, pcl::PointCloud<pcl::PointXYZRGB>& cloud)
+{
+    std::ofstream outfile(filename);
+    outfile << "ply" << std::endl;
+    outfile << "format ascii 1.0" << std::endl;
+    outfile << "comment Version 2, Copyright 2017, 8i Labs, Inc." << std::endl;
+    outfile << "comment frame_to_world_scale 0.181985" << std::endl;
+    outfile << "comment frame_to_world_translation -31.8478 1.0016 -32.6788" << std::endl;
+    outfile << "comment width 1024" << std::endl;
+    outfile << "element vertex " << cloud.size() << std::endl;
+    outfile << "property float x" << std::endl;
+    outfile << "property float y" << std::endl;
+    outfile << "property float z" << std::endl;
+    outfile << "property uchar red" << std::endl;
+    outfile << "property uchar green" << std::endl;
+    outfile << "property uchar blue" << std::endl;
+    outfile << "end_header" << std::endl;
+    for (auto & i : cloud)
+        outfile << i.x << " " << i.y << " " << i.z << " "
+                << (int)i.r << " " << (int)i.g << " " << (int)i.b << std::endl;
 }

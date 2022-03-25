@@ -41,7 +41,7 @@ extern void cloud_segmentation(std::vector<pcl::PointCloud<pcl::PointXYZRGB>> &c
 extern int occupation_cnt(char occ);
 extern uint8_t occupation_table[8];
 extern void occupation_pos(std::vector<int> &pos, uint8_t occ);
-extern void cloud_merge(pcl::PointCloud<pcl::PointXYZRGB> &cloud, pcl::PointCloud<pcl::PointXYZRGB> &part);
+
 extern pcl::PointXYZRGB new_point(pcl::PointXYZ &center, int pos, uint8_t red, uint8_t green, uint8_t blue);
 extern float average_hamming_distance(uint8_t occ_i, uint8_t occ_p);
 extern void merge_color(std::vector<point_color> &color_i, std::vector<point_color> &color_p);

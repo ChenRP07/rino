@@ -1,25 +1,16 @@
 #include "config.h"
 
-float MAX_CORRESPONDENCE_DISTANCE = 25.0f;
+float MAX_CORRESPONDENCE_DISTANCE = 30.0f;
 float TRANSFORMATION_DIFFERENCE_THRESHOLD = 1e-6;
 int MAX_ICP_ITERATION = 100;
 float MSE_DIFFERENCE_THRESHOLD = 0.01f;
-float MAX_FITNESS_MSE = 100.0f;
-
-float OVERLAP_SQRT_DISTANCE_THRESHOLD = 10.0f;
-int OVERLAP_POINTS_THRESHOLD = 10;
-
-float DENSE_CLUSTERING_NEIGHBOR_RADIUS = 5.0f;
-int DENSE_CLUSTERING_NEIGHBOR_NUMBER = 4;
-
-float NORMAL_ESTIMATION_RADIUS = 3.0f;
-float FPFH_ESTIMATION_RADIUS = 5.0f;
 
 float MIN_MERGE_HAMMING_DISTANCE = 4.0f;
 
 int CONSTANT_CLUSTER_NUMBER = 50;
 
 int PARALLEL_DECODER_THREAD = 20;
+int JPEG_COMPRESSION_QUALITY = 70;
 
 int CompressString(const std::string& src, std::string& dst, int compressionlevel)
 {
@@ -31,10 +22,10 @@ int CompressString(const std::string& src, std::string& dst, int compressionleve
     auto code = ZSTD_isError(cSize);
     if (code)
     {
-        return code;
+        return (int)code;
     }
     dst.resize(cSize);
-    return code;
+    return (int)code;
 }
 
 int DecompressString(const std::string& src, std::string& dst)
@@ -43,7 +34,7 @@ int DecompressString(const std::string& src, std::string& dst)
 
     if (0 == cBuffSize)
     {
-        return cBuffSize;
+        return (int)cBuffSize;
     }
 
     if (ZSTD_CONTENTSIZE_UNKNOWN == cBuffSize)
@@ -63,20 +54,20 @@ int DecompressString(const std::string& src, std::string& dst)
     auto code = ZSTD_isError(cSize);
     if (code)
     {
-        return code;
+        return (int)code;
     }
     dst.resize(cSize);
-    return code;
+    return (int)code;
 }
 
 
-void jpeg_encoder(std::string filename, std::vector<uint8_t>& colors, int quality)
+void jpeg_encoder(const std::string& filename, std::vector<uint8_t>& colors, int quality)
 {
     /* get jpeg image size from data */
-    int point_num = colors.size() / 3;
+    int point_num = (int)colors.size() / 3;
 
     /* make the image as square as possible */
-    int image_height = std::sqrt(point_num);
+    int image_height = (int)std::sqrt(point_num);
     int image_width = point_num / image_height;
 
     /* if points are not perfect square, add another row */
@@ -129,11 +120,11 @@ void jpeg_encoder(std::string filename, std::vector<uint8_t>& colors, int qualit
     }
 
     /* fill by 0x000000 black */
-    for (index; index < image_height * image_width * 3; index++)
+    for (; index < image_height * image_width * 3; index++)
         image_buffer[index] = 0x00;
 
     /* output to file */
-    int line = 0;
+    size_t line = 0;
     int row_stride = image_width * 3;
     while (line < cinfo.image_height)
     {
@@ -149,7 +140,7 @@ void jpeg_encoder(std::string filename, std::vector<uint8_t>& colors, int qualit
     jpeg_destroy_compress(&cinfo);
 }
 
-void jpeg_decoder(std::string filename, std::vector<unsigned char>& colors)
+void jpeg_decoder(const std::string& filename, std::vector<unsigned char>& colors)
 {
     /* make sure colors is empty */
     colors.clear();
@@ -180,7 +171,7 @@ void jpeg_decoder(std::string filename, std::vector<unsigned char>& colors)
     jpeg_start_decompress(&cinfo);
 
     /* how many data does one row contain */
-    row_stride = cinfo.output_width * cinfo.output_components;
+    row_stride = (int)cinfo.output_width * cinfo.output_components;
 
     /* allocate space for buffer */
     buffer = (*cinfo.mem->alloc_sarray)((j_common_ptr)&cinfo, JPOOL_IMAGE, row_stride, 1);
@@ -195,7 +186,7 @@ void jpeg_decoder(std::string filename, std::vector<unsigned char>& colors)
 
         unsigned char color_r, color_g, color_b;
         /* add colors to vector */
-        for (int i = 0; i < cinfo.output_width; i++)
+        for (size_t i = 0; i < cinfo.output_width; i++)
         {
             /* change bgr to rgb */
             color_r = *p++;
