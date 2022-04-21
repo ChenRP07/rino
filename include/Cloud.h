@@ -45,7 +45,7 @@ public:
     void constant_clustering(); /* clustering point clouds into blocks
                                 with approximately the same number of points */
 
-    float cluster_matching(std::vector<Cloud> &subclouds);
+    float cluster_matching(std::vector<Cloud> &subclouds, std::ofstream& outname);
 
     float local_icp(int ref_cluster_idx, Cloud &cloud);
     

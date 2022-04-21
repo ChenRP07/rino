@@ -8,6 +8,16 @@
 #include <queue>
 std::queue<int> frame_pool;
 std::mutex pool_mutex;
+std::string data_name[4] = {"loot", "longdress", "soldier", "redandblack"};
+int frame_begin[4] = {1000, 1051, 536, 1450};
+int config = 0;
+std::string convert_str(int i)
+{
+    std::string str = std::to_string(i);
+    if (i < 1000)
+        str.insert(str.begin(), '0');
+    return str;
+}
 void proc()
 {
     while (true)
@@ -27,11 +37,11 @@ void proc()
             return;
 
         parallel_encoder enc;
-        enc.encoder("../data/loot/loot_vox10_" + std::to_string(i) + ".ply",
-                    "../data/loot/loot_vox10_" + std::to_string(i + 1) + ".ply",
-                    "../data/result/loot/auxiliary/aux_" + std::to_string(i) + ".dat",
-                    "../data/result/loot/geometry/geo_" + std::to_string(i) + ".dat",
-                    "../data/result/loot/color/color_" + std::to_string(i) + ".jpg");
+        enc.encoder("../data/" + data_name[config] + "/" + data_name[config] + "_vox10_" + convert_str(i) + ".ply",
+                    "../data/" + data_name[config] + "/" + data_name[config] + "_vox10_" + convert_str(i + 1) + ".ply",
+                    "../data/result/" + data_name[config] + "/auxiliary/aux_" + convert_str(i) + ".dat",
+                    "../data/result/" + data_name[config] + "/geometry/geo_" + convert_str(i) + ".dat",
+                    "../data/result/" + data_name[config] + "/color/color_" + convert_str(i) + ".jpg");
     }
 }
 
@@ -39,7 +49,7 @@ int main()
 {
     struct timeval tim1{}, tim2{};
     gettimeofday(&tim1, nullptr);
-    for (int i = 1000; i < 1000 + 300; i += 2)
+    for (int i = frame_begin[config]; i < frame_begin[config] + 300; i += 2)
         frame_pool.push(i);
 
     std::thread threads[50];

@@ -16,6 +16,7 @@
 #include <csetjmp>
 #include <vector>
 #include "jpeg/jpeglib.h"
+#include "turbojpeg.h"
 
 extern float MAX_CORRESPONDENCE_DISTANCE;
 extern float MSE_DIFFERENCE_THRESHOLD;
@@ -31,7 +32,9 @@ extern int JPEG_COMPRESSION_QUALITY;
 
 extern int CompressString(const std::string& src, std::string& dst, int compressionlevel);
 extern int DecompressString(const std::string& src, std::string& dst);
-
+extern void turbo_jpeg_encoder(const std::string& filename, std::vector<uint8_t>& colors, int quality);
+extern unsigned int turbo_jpeg_decoder(unsigned char * colors, std::vector<uint8_t>& result, unsigned int _jpegSize);
 extern void jpeg_encoder(const std::string& filename, std::vector<uint8_t>& colors, int quality);
 extern void jpeg_decoder(const std::string& filename, std::vector<uint8_t>& colors);
+
 #endif

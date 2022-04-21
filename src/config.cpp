@@ -1,16 +1,16 @@
 #include "config.h"
 
-float MAX_CORRESPONDENCE_DISTANCE = 30.0f;
+float MAX_CORRESPONDENCE_DISTANCE = 100.0f;
 float TRANSFORMATION_DIFFERENCE_THRESHOLD = 1e-6;
 int MAX_ICP_ITERATION = 100;
 float MSE_DIFFERENCE_THRESHOLD = 0.01f;
 
-float MIN_MERGE_HAMMING_DISTANCE = 4.0f;
+float MIN_MERGE_HAMMING_DISTANCE = 6.01f;
 
-int CONSTANT_CLUSTER_NUMBER = 50;
+int CONSTANT_CLUSTER_NUMBER = 150;
 
-int PARALLEL_DECODER_THREAD = 20;
-int JPEG_COMPRESSION_QUALITY = 70;
+int PARALLEL_DECODER_THREAD = 30;
+int JPEG_COMPRESSION_QUALITY = 60;
 
 int CompressString(const std::string& src, std::string& dst, int compressionlevel)
 {
@@ -203,4 +203,52 @@ void jpeg_decoder(const std::string& filename, std::vector<unsigned char>& color
     jpeg_finish_decompress(&cinfo);
     jpeg_destroy_decompress(&cinfo);
     fclose(infile);
+}
+
+void turbo_jpeg_encoder(const std::string& filename, std::vector<uint8_t>& colors, int quality)
+{
+    /* get jpeg image size from data */
+    int point_num = (int)colors.size() / 3;
+
+    /* make the image as square as possible */
+    int image_height = (int)std::sqrt(point_num);
+    int image_width = point_num / image_height;
+
+    /* if points are not perfect square, add another row */
+    if (point_num != image_height * image_width)
+        image_width += 1;
+
+    long unsigned int _jpegSize = 0;
+    unsigned char* _compressedImage = NULL; //!< Memory is allocated by tjCompress2 if _jpegSize == 0
+
+    tjhandle _jpegCompressor = tjInitCompress();
+
+    tjCompress2(_jpegCompressor, &colors[0], image_width, 0, image_height, TJPF_RGB,
+                &_compressedImage, &_jpegSize, TJSAMP_444, quality,
+                TJFLAG_FASTDCT);
+
+    tjDestroy(_jpegCompressor);
+
+    FILE* fp;
+    fp = fopen(filename.c_str(), "w");
+    fwrite(_compressedImage, 1, _jpegSize, fp);
+    fclose(fp);
+//to free the memory allocated by TurboJPEG (either by tjAlloc(),
+//or by the Compress/Decompress) after you are done working on it:
+    tjFree(_compressedImage);
+}
+
+unsigned int turbo_jpeg_decoder(unsigned char * colors, std::vector<uint8_t>& result, unsigned int _jpegSize)
+{
+    int jpegSubsamp, width, height;
+
+    tjhandle _jpegDecompressor = tjInitDecompress();
+
+    tjDecompressHeader2(_jpegDecompressor, colors, _jpegSize, &width, &height, &jpegSubsamp);
+
+    result.resize(width * height * 3);
+    tjDecompress2(_jpegDecompressor, colors, _jpegSize, &result[0], width, 0, height, TJPF_BGR, TJFLAG_FASTDCT);
+
+    tjDestroy(_jpegDecompressor);
+    return width * height * 3;
 }

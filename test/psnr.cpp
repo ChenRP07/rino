@@ -6,7 +6,16 @@
 #include <iostream>
 #include <cmath>
 #include <vector>
+std::string data_name[4] = {"loot", "longdress", "soldier", "redandblack"};
+int frame_begin[4] = {1000, 1051, 536, 1450};
 
+std::string convert_str(int i)
+{
+    std::string str = std::to_string(i);
+    if (i < 1000)
+        str.insert(str.begin(), '0');
+    return str;
+}
 float bounding_range(pcl::PointCloud<pcl::PointXYZRGB>& source)
 {
     float maxx = FLT_MIN, maxy = FLT_MIN, maxz = FLT_MIN;
@@ -101,25 +110,53 @@ void psnr(pcl::PointCloud<pcl::PointXYZRGB>& source, pcl::PointCloud<pcl::PointX
     psnr_v = 10.0f * std::log10(255.0f * 255.0f / v_mse);
 }
 
-
-int main()
+#include <queue>
+#include <thread>
+#include <mutex>
+std::queue<int> task;
+std::mutex file_mutex, task_mutex;
+std::ofstream outfile("psnr.txt");
+int config = 0;
+void proc()
 {
-    std::ofstream outfile("psnr.txt");
-    for (int i = 1000; i < 1000 + 300; i++)
+    while (true)
     {
+        int frame;
+        bool flag = false;
+        task_mutex.lock();
+        if (!task.empty())
+        {
+            frame = task.front();
+            task.pop();
+            flag = true;
+        }
+        task_mutex.unlock();
+        if (!flag)
+            return;
         pcl::PointCloud<pcl::PointXYZRGB> cloud;
         pcl::PointCloud<pcl::PointXYZRGB> cloud1;
-        pcl::io::loadPLYFile("../data/result/loot/cloud/loot_vox10_" + std::to_string(i) + ".ply", cloud);
-        pcl::io::loadPLYFile("../data/loot/loot_vox10_" + std::to_string(i) + ".ply", cloud1);
+        pcl::io::loadPLYFile("../data/" + data_name[config] + "/" + data_name[config] + "_vox10_" + convert_str(frame) + ".ply", cloud);
+        pcl::io::loadPLYFile("../data/result/" + data_name[config] + "/cloud/" + data_name[config] + "_vox10_" + convert_str(frame) + ".ply", cloud1);
         float psnr_geo, psnr_y, psnr_u, psnr_v;
         psnr(cloud, cloud1, psnr_geo, psnr_y, psnr_u, psnr_v);
-        outfile << i << " "
+        file_mutex.lock();
+        outfile << frame << " "
                 << psnr_geo << " "
                 << psnr_y << " "
                 << psnr_u << " "
                 << psnr_v << " "
                 << std::endl;
+        file_mutex.unlock();
     }
-
+}
+int main()
+{
+    for (int i = frame_begin[config]; i < frame_begin[config] + 300; i++)
+        task.push(i);
+    std::thread ths[50];
+    for (auto & th : ths)
+        th = std::thread(proc);
+    for (auto& th : ths)
+        th.join();
     return 0;
 }

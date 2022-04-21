@@ -24,9 +24,9 @@ public:
     void set_ref_point_cloud(const std::string& filename);
     void set_point_cloud(const std::string& filename);
     void clusters_generating();
-    void clusters_matching();
-    void clusters_compression(const std::string& aux_name, const std::string& geo_name, std::string color_name);
+    void clusters_matching(const std::string& aux_name);
+    void clusters_compression(const std::string& aux_name, const std::string& geo_name, const std::string& color_name);
     void encoder(const std::string& reffilename, const std::string& filename, const std::string& aux_name,
-                 const std::string& geo_name, std::string color_name);
+                 const std::string& geo_name, const std::string& color_name);
 };
 #endif //RINO_PARALLEL_ENCODER_H

@@ -93,6 +93,7 @@ float Cloud::total_base_icp()
     this->point_cloud.swap(result);
     this->transformation_matrix = trans * transformation_matrix;
     //std::cout << "ICP Convergence : " << icp.getFitnessScore() << "." << std::endl;
+
     return (float)icp.getFitnessScore();
 }
 
@@ -119,15 +120,16 @@ void Cloud::constant_clustering()
 }
 
 
-float Cloud::cluster_matching(std::vector<Cloud> &subclouds)
+float Cloud::cluster_matching(std::vector<Cloud> &subclouds, std::ofstream& outname)
 {
     subclouds.clear();
     subclouds.resize(this->ref_clusters.size());
-    float mse = 0.0f;
     /* use these clusters to do icp */
     for (size_t i = 0; i < this->ref_clusters.size(); i++)
-        mse += this->local_icp((int)i, subclouds[i]);
-
+    {
+        float mse = this->local_icp((int)i, subclouds[i]);
+        outname << mse << std::endl;
+    }
     /* create a cloud and record every points' index */
     std::vector<int> ref_cluster_index;
     std::vector<int> point_div_index;
@@ -157,7 +159,7 @@ float Cloud::cluster_matching(std::vector<Cloud> &subclouds)
         cloud_transformation(subclouds[i].point_cloud, subclouds[i].transformation_matrix.inverse());
         subclouds[i].transformation_matrix = subclouds[i].transformation_matrix.inverse() * this->transformation_matrix;
     }
-    return mse / (float)this->ref_clusters.size();
+    return 1.0f;
 }
 
 void cloud_transformation(pcl::PointCloud<pcl::PointXYZRGB> &cloud,
@@ -183,7 +185,7 @@ void cloud_transformation(pcl::PointCloud<pcl::PointXYZRGB> &cloud,
 
 float Cloud::local_icp(int ref_cluster_idx, Cloud &cloud)
 {
-    if (this->ref_clusters[ref_cluster_idx].size() == 0)
+    if (this->ref_clusters[ref_cluster_idx].size() <= 10)
         return FLT_MAX;
 
     pcl::PointCloud<pcl::PointXYZRGB> align_cloud;
@@ -227,11 +229,18 @@ float Cloud::local_icp(int ref_cluster_idx, Cloud &cloud)
     icp.setTransformationEpsilon(TRANSFORMATION_DIFFERENCE_THRESHOLD);
 
     icp.align(result);
-
     cloud.point_cloud.clear();
-    cloud.change_ref_point_cloud(result);
-    cloud.transformation_matrix = icp.getFinalTransformation() * translation;
-    auto mse = (float)icp.getFitnessScore();
-    //std::cout << ref_cluster_idx << " " << mse << std::endl;
-    return mse;
+    if (icp.hasConverged())
+    {
+        cloud.change_ref_point_cloud(result);
+        cloud.transformation_matrix = icp.getFinalTransformation() * translation;
+        auto mse = (float)icp.getFitnessScore();
+        //std::cout << ref_cluster_idx << " " << mse << std::endl;
+        return mse;
+    }
+    else
+    {
+        //pcl::io::savePLYFile("1.ply",this->ref_clusters[ref_cluster_idx]);
+        return FLT_MAX;
+    }
 }

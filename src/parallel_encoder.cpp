@@ -24,15 +24,20 @@ void parallel_encoder::clusters_generating()
     std::cout << "Reference point cloud clustering." << std::endl;
 }
 
-void parallel_encoder::clusters_matching()
+void parallel_encoder::clusters_matching(const std::string& aux_name)
 {
+    std::string name;
+    for (int i = 1; i <= 8; i++)
+        name.insert(name.begin(), aux_name[aux_name.size() - i]);
+    std::ofstream outname("mse/" + name);
     this->point_clouds.centroid_alignment();
     float mse = point_clouds.total_base_icp();
-    std::cout << "Total icp registration score : " << mse << std::endl;
+    outname << mse << std::endl;
+    //std::cout << "Total icp registration score : " << mse << std::endl;
 
     std::vector<Cloud> subclouds;
-    float avgmse = this->point_clouds.cluster_matching(subclouds);
-    std::cout << "Clusters matching average mse : " << avgmse << std::endl;
+    this->point_clouds.cluster_matching(subclouds, outname);
+    //std::cout << "Clusters matching average mse : " << avgmse << std::endl;
 
     this->clusters.resize(subclouds.size());
     for (size_t i = 0; i < subclouds.size(); i++)
@@ -48,11 +53,12 @@ void parallel_encoder::clusters_matching()
     }
 }
 
-void parallel_encoder::clusters_compression(const std::string& aux_name, const std::string& geo_name, std::string color_name)
+void parallel_encoder::clusters_compression(const std::string& aux_name, const std::string& geo_name, const std::string& color_name)
 {
     std::ofstream aux_file(aux_name);
     aux_file << this->clusters.size() << std::endl;
     std::ofstream geo_file(geo_name, std::ios::binary);
+
     for (size_t i = 0; i < this->clusters.size(); i++)
     {
         Octree tree;
@@ -63,17 +69,18 @@ void parallel_encoder::clusters_compression(const std::string& aux_name, const s
         aux_file << center.x << " " << center.y << " " << center.z << " " << tree.tree_range << std::endl;
         aux_file << this->trans[i] << std::endl;
     }
-    jpeg_encoder(std::move(color_name), this->colors, JPEG_COMPRESSION_QUALITY);
+    //turbo_jpeg_encoder(color_name, this->colors, JPEG_COMPRESSION_QUALITY);
+    jpeg_encoder(color_name, this->colors, JPEG_COMPRESSION_QUALITY);
 }
 
 void parallel_encoder::encoder(const std::string& reffilename, const std::string& filename, const std::string& aux_name,
-                               const std::string& geo_name, std::string color_name)
+                               const std::string& geo_name, const std::string& color_name)
 {
     this->set_ref_point_cloud(reffilename);
     this->set_point_cloud(filename);
 
     this->clusters_generating();
-    this->clusters_matching();
+    this->clusters_matching(aux_name);
 
-    this->clusters_compression(aux_name, geo_name, std::move(color_name));
+    this->clusters_compression(aux_name, geo_name, color_name);
 }

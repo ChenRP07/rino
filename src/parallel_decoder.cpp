@@ -120,15 +120,23 @@ void parallel_decoder::parallel_octree_geometry_construction()
 
 void parallel_decoder::set_color_information(std::string color_file)
 {
-    gettimeofday(&this->time1, nullptr);    /* timer1 */
+    FILE* fp = fopen(color_file.c_str(), "rb");
+    unsigned char* jpeg_image = NULL;
+    fseek(fp, 0, SEEK_END);
+    unsigned long src_size = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+    jpeg_image = (unsigned char *)malloc(src_size * sizeof(unsigned char));
+    fread(jpeg_image, src_size, 1, fp);
+    fclose(fp);
 
-    jpeg_decoder(std::move(color_file), this->color_info);   /* jpeg decode */
-    //std::cout << color_info.size() << std::endl;
+    gettimeofday(&this->time1, nullptr);    /* timer1 */
+    unsigned int size = turbo_jpeg_decoder(jpeg_image, this->color_info, src_size);
+    //jpeg_decoder(std::move(color_file), this->color_info);   /* jpeg decode */
     gettimeofday(&this->time2, nullptr);    /* timer2 and output consumed time */
     std::cout << "JPEG decoder, using " << std::fixed << std::setprecision(3)
               << (float)(this->time2.tv_sec - this->time1.tv_sec) + (float)(this->time2.tv_usec - this->time1.tv_usec) / 1000000
               << "s." << std::endl;
-
+              
     gettimeofday(&this->time1, nullptr);    /* timer1 */
 
     int color_index = 0;

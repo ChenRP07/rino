@@ -379,6 +379,7 @@ void Octree::reconstruct(std::vector<pcl::PointCloud<pcl::PointXYZRGB>> &clouds,
         }
         Res /= 2;
     }
+
     size_t color_idx = color_index;
     for (size_t i = 0; i < this->leafs.size(); i++)
     {
